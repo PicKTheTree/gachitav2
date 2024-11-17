@@ -6,13 +6,18 @@ import '../models/user_model.dart';
 import 'mileage_recharge_screen.dart';
 import 'room_list_screen.dart';
 
+/// NewMainScreen 클래스
+/// - 사용자 마일리지 상태를 확인하여 적절한 화면을 제공
+/// - 마일리지 충전 및 방 탐색 기능 제공
+/// - 방 탐색 화면으로 이동 시 경로 안내 팝업을 표시
 class NewMainScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final mileageProvider = Provider.of<MileageProvider>(context);
-    final UserModel? user = authProvider.user;
+    final authProvider = Provider.of<AuthProvider>(context); // 사용자 인증 상태 제공
+    final mileageProvider = Provider.of<MileageProvider>(context); // 마일리지 상태 제공
+    final UserModel? user = authProvider.user; // 현재 로그인된 사용자 정보
 
+    // 로그인되지 않은 경우 기본 화면
     if (user == null) {
       return Scaffold(
         body: Center(child: Text('User not logged in')),
@@ -20,15 +25,15 @@ class NewMainScreen extends StatelessWidget {
     }
 
     return WillPopScope(
-      onWillPop: () async => false,
+      onWillPop: () async => false, // 뒤로가기 비활성화
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.white, // 기본 배경색
         appBar: AppBar(
-          automaticallyImplyLeading: false,
-          backgroundColor: Colors.white,
-          elevation: 0,
+          automaticallyImplyLeading: false, // 기본 뒤로가기 버튼 비활성화
+          backgroundColor: Colors.white, // AppBar 배경색
+          elevation: 0, // 그림자 제거
           title: Text(
-            '같이TA',
+            '같이TA', // 화면 제목
             style: TextStyle(
               fontSize: 24,
               fontFamily: 'Pretendard',
@@ -37,42 +42,38 @@ class NewMainScreen extends StatelessWidget {
             ),
           ),
           actions: [
+            // 마일리지 충전 액션
             Container(
               padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  InkWell(
-                    onTap: () => _navigateToMileageRechargeScreen(context),
+              child: InkWell(
+                onTap: () => _navigateToMileageRechargeScreen(context), // 충전 화면으로 이동
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
                     borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.monetization_on_rounded,
-                            color: Color(0xFF4A55A2),
-                            size: 20,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            '${mileageProvider.currentMileage}',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'Pretendard',
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.monetization_on_rounded,
+                        color: Color(0xFF4A55A2),
+                        size: 20,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        '${mileageProvider.currentMileage}', // 현재 마일리지 표시
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontFamily: 'Pretendard',
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
@@ -86,12 +87,14 @@ class NewMainScreen extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      // 앱 로고 이미지
                       Image.asset(
                         'assets/symbol.png',
                         width: 200,
                         height: 200,
                       ),
                       SizedBox(height: 40),
+                      // 마일리지가 충분한 경우
                       if (mileageProvider.currentMileage >= 3500) ...[
                         Text(
                           '방을 찾아보세요!',
@@ -113,42 +116,39 @@ class NewMainScreen extends StatelessWidget {
                           ),
                         ),
                         SizedBox(height: 32),
-                        Container(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: () => _navigateToRoomListScreen(context),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFF4A55A2),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shadowColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
+                        // 방 찾기 버튼
+                        ElevatedButton(
+                          onPressed: () => _navigateToRoomListScreen(context), // 방 탐색 화면으로 이동
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Color(0xFF4A55A2),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '방 찾기',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontFamily: 'Pretendard',
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -0.3,
+                                ),
                               ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '방 찾기',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontFamily: 'Pretendard',
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  size: 16,
-                                ),
-                              ],
-                            ),
+                              SizedBox(width: 8),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 16,
+                              ),
+                            ],
                           ),
                         ),
                       ],
+                      // 마일리지가 부족한 경우
                       if (mileageProvider.currentMileage < 3500) ...[
                         Text(
                           '마일리지가 부족합니다',
@@ -170,41 +170,11 @@ class NewMainScreen extends StatelessWidget {
                             color: Colors.black54,
                           ),
                         ),
-                        SizedBox(height: 32),
-                        RichText(
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: '\$',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  color: Colors.grey,
-                                  fontFamily: 'WAGURI',
-                                ),
-                              ),
-                              TextSpan(
-                                text: ' 를 눌러 마일리지를 충전하세요.',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.red,
-                                  fontFamily: 'WAGURI',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          '(최소 3500이상 필요)',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.red,
-                            fontFamily: 'WAGURI',
-                          ),
-                        ),
                       ],
                     ],
                   ),
                 ),
+                // 푸터 메시지
                 Text(
                   'made by Software',
                   style: TextStyle(
@@ -220,6 +190,7 @@ class NewMainScreen extends StatelessWidget {
     );
   }
 
+  /// 마일리지 충전 화면으로 이동
   void _navigateToMileageRechargeScreen(BuildContext context) {
     Navigator.push(
       context,
@@ -229,6 +200,7 @@ class NewMainScreen extends StatelessWidget {
     );
   }
 
+  /// 방 탐색 화면으로 이동 (경로 안내 팝업 포함)
   void _navigateToRoomListScreen(BuildContext context) {
     showDialog(
       context: context,
@@ -243,30 +215,11 @@ class NewMainScreen extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: Offset(0, 5),
-              ),
-            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Color(0xFF4A55A2).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.directions_rounded,
-                  color: Color(0xFF4A55A2),
-                  size: 32,
-                ),
-              ),
-              SizedBox(height: 16),
+              // 경로 안내 팝업 구성
               Text(
                 '경로 안내',
                 style: TextStyle(
@@ -277,177 +230,15 @@ class NewMainScreen extends StatelessWidget {
                 ),
               ),
               SizedBox(height: 24),
-              Container(
-                padding: EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.grey[200]!,
-                    width: 1,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Color(0xFF4A55A2).withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.radio_button_unchecked,
-                            size: 16,
-                            color: Color(0xFF4A55A2),
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '출발지',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontFamily: 'Pretendard',
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                              Text(
-                                '장전역 4번 출구',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontFamily: 'Pretendard',
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    Container(
-                      margin: EdgeInsets.only(left: 19),
-                      height: 24,
-                      child: VerticalDivider(
-                        color: Color(0xFF4A55A2).withOpacity(0.3),
-                        thickness: 1,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Color(0xFF4A55A2).withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.place,
-                            size: 16,
-                            color: Color(0xFF4A55A2),
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '도착지',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontFamily: 'Pretendard',
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                              Text(
-                                '부산가톨릭대학교 정문',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontFamily: 'Pretendard',
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                '출발지와 도착지가 정해져있습니다.',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontFamily: 'Pretendard',
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black54,
-                ),
-              ),
-              SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        backgroundColor: Colors.grey[100],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        '취소',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Pretendard',
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black54,
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => RoomListScreen()),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        backgroundColor: Color(0xFF4A55A2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        '확인',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontFamily: 'Pretendard',
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // 팝업 닫기
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => RoomListScreen()),
+                  ); // 방 탐색 화면으로 이동
+                },
+                child: Text('확인'),
               ),
             ],
           ),

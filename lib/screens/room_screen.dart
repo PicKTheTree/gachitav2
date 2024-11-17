@@ -7,32 +7,38 @@ import 'settlement_confirmation_screen.dart';
 import 'payment_instruction_screen.dart';
 import 'room_list_screen.dart';
 
+/// RoomScreen 클래스
+/// - 특정 방의 상세 정보를 표시하고 사용자의 방 참여, 방 나가기, 정산 등의 작업을 처리
+/// - 방장과 일반 사용자 간의 권한과 기능을 구분하여 제공
 class RoomScreen extends StatelessWidget {
-  final String roomId;
+  final String roomId; // 방의 고유 ID
 
+  /// RoomScreen 생성자
+  /// - [roomId]: 방의 고유 ID를 전달받아 화면에서 사용
   const RoomScreen({Key? key, required this.roomId}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final roomProvider = Provider.of<RoomProvider>(context, listen: false);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final currentUserId = authProvider.user?.uid;
+    final roomProvider = Provider.of<RoomProvider>(context, listen: false); // 방 데이터 관리
+    final authProvider = Provider.of<AuthProvider>(context, listen: false); // 사용자 인증 관리
+    final currentUserId = authProvider.user?.uid; // 현재 로그인된 사용자 ID
 
     return WillPopScope(
+      // 뒤로가기 버튼 누를 때 실행할 동작 정의
       onWillPop: () async {
         if (currentUserId != null) {
           final isCreator = (await roomProvider.getRoom(roomId))?.creatorUid == currentUserId;
-          await roomProvider.leaveRoom(roomId, currentUserId, isCreator);
+          await roomProvider.leaveRoom(roomId, currentUserId, isCreator); // 방 나가기 로직 처리
         }
         return true;
       },
       child: Scaffold(
         appBar: AppBar(
-          automaticallyImplyLeading: false,
-          backgroundColor: Colors.white,
-          elevation: 0,
+          automaticallyImplyLeading: false, // 기본 뒤로가기 버튼 제거
+          backgroundColor: Colors.white, // AppBar 배경색 설정
+          elevation: 0, // 그림자 제거
           title: Text(
-            '방',
+            '방', // 화면 제목
             style: TextStyle(
               fontFamily: 'WAGURI',
               fontSize: 30,
@@ -42,13 +48,14 @@ class RoomScreen extends StatelessWidget {
           leading: IconButton(
             icon: Icon(Icons.arrow_back_ios, color: Colors.black87),
             onPressed: () async {
+              // 뒤로가기 버튼 누를 때 방 나가기 처리
               if (currentUserId != null) {
                 final isCreator = (await roomProvider.getRoom(roomId))?.creatorUid == currentUserId;
                 await roomProvider.leaveRoom(roomId, currentUserId, isCreator);
-                
+
                 if (!context.mounted) return;
                 Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => RoomListScreen()),
+                  MaterialPageRoute(builder: (context) => RoomListScreen()), // 방 목록 화면으로 이동
                   (route) => false,
                 );
               }
@@ -56,25 +63,29 @@ class RoomScreen extends StatelessWidget {
           ),
         ),
         body: StreamBuilder<RoomModel?>(
-          stream: roomProvider.getRoomStream(roomId),
+          stream: roomProvider.getRoomStream(roomId), // 실시간 방 데이터 스트림
           builder: (context, snapshot) {
+            // 데이터 로딩 중일 때
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator());
             }
 
+            // 데이터 로드 중 오류 발생
             if (snapshot.hasError) {
               return Center(child: Text('오류가 발생했습니다.'));
             }
 
+            // 방 데이터가 없는 경우
             if (!snapshot.hasData || snapshot.data == null) {
               WidgetsBinding.instance.addPostFrameCallback((_) async {
                 final wasSettlementCompleted = await roomProvider.wasSettlementCompleted(roomId);
-                
+
                 if (!context.mounted) return;
                 if (currentUserId != snapshot.data?.creatorUid) {
+                  // 방장이 나갔을 경우 경고 팝업 표시
                   showDialog(
                     context: context,
-                    barrierDismissible: false,
+                    barrierDismissible: false, // 팝업 외부 터치로 닫기 방지
                     builder: (BuildContext context) {
                       return AlertDialog(
                         shape: RoundedRectangleBorder(
@@ -89,9 +100,9 @@ class RoomScreen extends StatelessWidget {
                           ),
                         ),
                         content: Text(
-                          wasSettlementCompleted 
-                            ? '정산이 완료되었습니다.'
-                            : '방장이 방을 나갔습니다.',
+                          wasSettlementCompleted
+                              ? '정산이 완료되었습니다.'
+                              : '방장이 방을 나갔습니다.',
                           style: TextStyle(
                             fontSize: 16,
                             fontFamily: 'Pretendard',
@@ -130,10 +141,11 @@ class RoomScreen extends StatelessWidget {
               return Center(child: CircularProgressIndicator());
             }
 
-            final room = snapshot.data!;
-            bool isCreator = room.creatorUid == currentUserId;
-            final users = room.users;
+            final room = snapshot.data!; // 방 데이터
+            bool isCreator = room.creatorUid == currentUserId; // 현재 사용자가 방장인지 확인
+            final users = room.users; // 방 참가자 목록
 
+            // 정산 중일 때 일반 사용자 정산 화면으로 이동
             if (room.isSettling && !isCreator) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 Navigator.push(
@@ -152,45 +164,40 @@ class RoomScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: ListView.builder(
-                    itemCount: users.length,
+                    itemCount: users.length, // 방 참가자 수
                     itemBuilder: (context, index) {
-                      final userId = users[index];
-                      final isUserCreator = userId == room.creatorUid;
-                      final isCurrentUser = userId == currentUserId;
+                      final userId = users[index]; // 참가자 ID
+                      final isUserCreator = userId == room.creatorUid; // 방장 여부
+                      final isCurrentUser = userId == currentUserId; // 현재 사용자 여부
 
                       return FutureBuilder<String?>(
-                        future: authProvider.getUserEmail(userId),
+                        future: authProvider.getUserEmail(userId), // 참가자 이메일 가져오기
                         builder: (context, emailSnapshot) {
-                          if (emailSnapshot.connectionState ==
-                              ConnectionState.waiting) {
+                          if (emailSnapshot.connectionState == ConnectionState.waiting) {
                             return Center(child: CircularProgressIndicator());
                           }
 
-                          final userEmail = emailSnapshot.data ?? 'Unknown';
+                          final userEmail = emailSnapshot.data ?? 'Unknown'; // 이메일 정보
 
                           return Padding(
-                            padding:
-                                EdgeInsets.symmetric(horizontal: 24, vertical: 6),
+                            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 6),
                             child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 16,
-                              ),
+                              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                               decoration: BoxDecoration(
-                                color: Colors.grey[50],
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.grey[200]!),
+                                color: Colors.grey[50], // 배경색 설정
+                                borderRadius: BorderRadius.circular(16), // 둥근 모서리
+                                border: Border.all(color: Colors.grey[200]!), // 테두리 색상
                               ),
                               child: Row(
                                 children: [
                                   Container(
                                     padding: EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: Color(0xFF4A55A2).withOpacity(0.1),
-                                      shape: BoxShape.circle,
+                                      color: Color(0xFF4A55A2).withOpacity(0.1), // 배경색
+                                      shape: BoxShape.circle, // 원형 배경
                                     ),
                                     child: Icon(
-                                      Icons.person,
+                                      Icons.person, // 사용자 아이콘
                                       color: Color(0xFF4A55A2),
                                       size: 20,
                                     ),
@@ -198,13 +205,12 @@ class RoomScreen extends StatelessWidget {
                                   SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      crossAxisAlignment: CrossAxisAlignment.start, // 왼쪽 정렬
                                       children: [
                                         Row(
                                           children: [
                                             Text(
-                                              userEmail,
+                                              userEmail, // 사용자 이메일
                                               style: TextStyle(
                                                 fontSize: 16,
                                                 fontFamily: 'Pretendard',
@@ -214,15 +220,12 @@ class RoomScreen extends StatelessWidget {
                                             ),
                                             SizedBox(width: 8),
                                             if (isCurrentUser) ...[
+                                              // 현재 사용자인 경우 '나' 표시
                                               Container(
-                                                padding: EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 4,
-                                                ),
+                                                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                 decoration: BoxDecoration(
-                                                  color: Colors.grey[200],
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
+                                                  color: Colors.grey[200], // 배경색
+                                                  borderRadius: BorderRadius.circular(12), // 둥근 모서리
                                                 ),
                                                 child: Text(
                                                   '나',
@@ -238,6 +241,7 @@ class RoomScreen extends StatelessWidget {
                                           ],
                                         ),
                                         if (isUserCreator) ...[
+                                          // 방장 표시
                                           SizedBox(height: 4),
                                           Text(
                                             '방장',
@@ -261,80 +265,26 @@ class RoomScreen extends StatelessWidget {
                     },
                   ),
                 ),
+                // 방장용 기능 버튼
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                   child: Column(
                     children: [
                       if (isCreator) ...[
-                        Container(
-                          width: double.infinity,
-                          height: 56,
-                          child: ElevatedButton(
-                            onPressed: () => _settleCosts(context, room),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFF4A55A2),
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shadowColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '정산하기',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontFamily: 'Pretendard',
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                                SizedBox(width: 8),
-                                Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  size: 16,
-                                ),
-                              ],
-                            ),
-                          ),
+                        ElevatedButton(
+                          onPressed: () => _settleCosts(context, room), // 정산 시작
+                          child: Text('정산하기'),
                         ),
-                        SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          height: 56,
-                          child: OutlinedButton(
-                            onPressed: () async {
-                              if (currentUserId != null) {
-                                await roomProvider.leaveRoom(roomId, currentUserId, isCreator);
-                                
-                                if (!context.mounted) return;
-                                Navigator.of(context).pushAndRemoveUntil(
-                                  MaterialPageRoute(builder: (context) => RoomListScreen()),
-                                  (route) => false,
-                                );
-                              }
-                            },
-                            style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Color(0xFF4A55A2)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: Text(
-                              '나가기',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontFamily: 'Pretendard',
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF4A55A2),
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                          ),
+                        OutlinedButton(
+                          onPressed: () async {
+                            await roomProvider.leaveRoom(roomId, currentUserId!, true); // 방 나가기
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(builder: (context) => RoomListScreen()),
+                              (route) => false,
+                            );
+                          },
+                          child: Text('방 나가기'),
                         ),
                       ],
                     ],
@@ -348,141 +298,12 @@ class RoomScreen extends StatelessWidget {
     );
   }
 
-  Future<bool> _handleBackPress(BuildContext context, String userId) async {
-    final roomProvider = Provider.of<RoomProvider>(context, listen: false);
-    RoomModel? room = await roomProvider.getRoom(roomId);
-
-    if (room == null) return true;
-
-    if (room.creatorUid == userId) {
-      final result = await showDialog<bool>(
-            context: context,
-            builder: (context) => Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Container(
-                padding: EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red[50],
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.logout_rounded,
-                        color: Colors.red[400],
-                        size: 32,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      '방 나가기',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontFamily: 'Pretendard',
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '방장이 나가면 방이 삭제됩니다.',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'Pretendard',
-                        fontWeight: FontWeight.w400,
-                        color: Colors.black54,
-                      ),
-                    ),
-                    Text(
-                      '정말 나가시겠습니까?',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontFamily: 'Pretendard',
-                        fontWeight: FontWeight.w400,
-                        color: Colors.black54,
-                      ),
-                    ),
-                    SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.symmetric(vertical: 12),
-                              backgroundColor: Colors.grey[100],
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              '취소',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontFamily: 'Pretendard',
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.of(context).pop(true),
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.symmetric(vertical: 12),
-                              backgroundColor: Colors.red[400],
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              '나가기',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontFamily: 'Pretendard',
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ) ??
-          false;
-
-      if (result) {
-        await roomProvider.leaveRoom(roomId, userId, true);
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/rooms',
-          (route) => false,
-        );
-      }
-      return false;
-    } else {
-      await roomProvider.leaveRoom(roomId, userId, false);
-      Navigator.pop(context);
-      return true;
-    }
-  }
-
+  /// 정산 시작
   void _settleCosts(BuildContext context, RoomModel room) async {
-    try {
-      final roomProvider = Provider.of<RoomProvider>(context, listen: false);
-      await roomProvider.startSettlement(room.id);
+    final roomProvider = Provider.of<RoomProvider>(context, listen: false); // 방 데이터 관리
 
+    try {
+      await roomProvider.startSettlement(room.id); // 정산 시작
       if (!context.mounted) return;
       Navigator.push(
         context,
@@ -502,74 +323,5 @@ class RoomScreen extends StatelessWidget {
         ),
       );
     }
-  }
-
-  void _showLeaveConfirmationDialog(BuildContext context, bool isCreator) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            '방 나가기',
-            style: TextStyle(
-              fontSize: 20,
-              fontFamily: 'Pretendard',
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: Text(
-            isCreator ? '방장이 나가면 방이 삭제됩니다.\n정말 나가시겠습니까?' : '정말 나가시겠습니까?',
-            style: TextStyle(
-              fontSize: 16,
-              fontFamily: 'Pretendard',
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                '취소',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Pretendard',
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                final roomProvider = Provider.of<RoomProvider>(context, listen: false);
-                final userId = Provider.of<AuthProvider>(context, listen: false).user!.uid;
-                
-                Navigator.of(context).pop(); // 다이얼로그 닫기
-                
-                await roomProvider.leaveRoom(roomId, userId, isCreator);
-                
-                if (!context.mounted) return;
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => RoomListScreen()),
-                  (route) => false,
-                );
-              },
-              child: Text(
-                '나가기',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontFamily: 'Pretendard',
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF4A55A2),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 }

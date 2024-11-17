@@ -9,9 +9,13 @@ import 'room_screen.dart';
 import 'payment_instruction_screen.dart';
 import 'new_main_screen.dart';
 
+/// SettlementConfirmationScreen 클래스
+/// - 방 정산 화면
+/// - 방장은 참가자의 송금 상태를 확인하고 정산을 완료할 수 있음.
+/// - 참가자는 송금을 진행하고 송금 상태를 업데이트할 수 있음.
 class SettlementConfirmationScreen extends StatelessWidget {
-  final String roomId;
-  final bool isCreator;
+  final String roomId; // 방 ID
+  final bool isCreator; // 방장 여부
 
   SettlementConfirmationScreen({
     required this.roomId,
@@ -20,24 +24,26 @@ class SettlementConfirmationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final roomProvider = Provider.of<RoomProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context);
-    final mileageProvider = Provider.of<MileageProvider>(context);
-    bool hasShownSnackBar = false;
+    final roomProvider = Provider.of<RoomProvider>(context); // 방 데이터 관리
+    final authProvider = Provider.of<AuthProvider>(context); // 사용자 인증 관리
+    final mileageProvider = Provider.of<MileageProvider>(context); // 마일리지 관리
+    bool hasShownSnackBar = false; // 스낵바 중복 표시 방지 플래그
 
     return WillPopScope(
+      // 뒤로가기 버튼 동작 허용
       onWillPop: () async => true,
       child: StreamBuilder<RoomModel?>(
-        stream: roomProvider.getRoomStream(roomId),
+        stream: roomProvider.getRoomStream(roomId), // 실시간 방 데이터 스트림
         builder: (context, snapshot) {
           if (!snapshot.hasData || snapshot.data == null) {
+            // 데이터 로딩 중
             return Scaffold(
               body: Center(child: CircularProgressIndicator()),
             );
           }
 
           final room = snapshot.data!;
-          final currentUserId = authProvider.user?.uid;
+          final currentUserId = authProvider.user?.uid; // 현재 사용자 ID
 
           if (currentUserId == null) {
             return Scaffold(
@@ -45,6 +51,7 @@ class SettlementConfirmationScreen extends StatelessWidget {
             );
           }
 
+          // 참가자가 송금을 완료했을 때 스낵바 표시
           if (!isCreator &&
               room.payments[currentUserId] == true &&
               !hasShownSnackBar) {
@@ -66,6 +73,7 @@ class SettlementConfirmationScreen extends StatelessWidget {
             });
           }
 
+          // 방장이 정산을 종료한 경우 방 목록 화면으로 이동
           if (!room.isSettling && isCreator) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               Navigator.of(context).pushAndRemoveUntil(
@@ -97,224 +105,148 @@ class SettlementConfirmationScreen extends StatelessWidget {
                 },
               ),
             ),
-            body: FutureBuilder<String?>(
-              future: authProvider.user?.uid != null
-                  ? authProvider.getUserEmail(authProvider.user!.uid)
-                  : Future.value(null),
-              builder: (context, userSnapshot) {
-                if (!userSnapshot.hasData) {
-                  return Center(child: CircularProgressIndicator());
-                }
+            body: Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isCreator ? '참가자 송금 현황' : '송금 정보',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontFamily: 'Pretendard',
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  SizedBox(height: 24),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: room.users.length, // 참가자 수
+                      itemBuilder: (context, index) {
+                        final userId = room.users[index]; // 참가자 ID
+                        final isPaid = room.payments?[userId] ?? false; // 송금 상태
+                        final isRoomCreator = userId == room.creatorUid; // 방장 여부
 
-                return StreamBuilder<RoomModel?>(
-                  stream: roomProvider.getRoomStream(roomId),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData || snapshot.data == null) {
-                      return Center(child: CircularProgressIndicator());
-                    }
+                        return FutureBuilder<String?>(
+                          future: authProvider.getUserEmail(userId), // 이메일 가져오기
+                          builder: (context, emailSnapshot) {
+                            final userEmail = emailSnapshot.data ?? 'Loading...';
 
-                    final room = snapshot.data!;
-                    if (!room.isSettling) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (context) => RoomListScreen()),
-                          (route) => false,
-                        );
-                      });
-                    }
-
-                    final currentUserId = authProvider.user?.uid;
-
-                    if (currentUserId == null) {
-                      return Center(child: Text('사용자 정보를 불러올 수 없습니다.'));
-                    }
-
-                    final currentUserPaid =
-                        room.payments?[currentUserId] ?? false;
-                    final isCurrentUserCreator =
-                        room.creatorUid == currentUserId;
-                    final allPaid = room.users.every((userId) =>
-                        userId == room.creatorUid ||
-                        (room.payments?[userId] ?? false));
-
-                    if (allPaid && isCreator && !hasShownSnackBar) {
-                      hasShownSnackBar = true;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '모든 참가자의 송금이 완료되었습니다',
-                              style: TextStyle(
-                                fontFamily: 'Pretendard',
-                                fontWeight: FontWeight.w500,
+                            return Container(
+                              margin: EdgeInsets.only(bottom: 12),
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.grey[200]!),
                               ),
-                            ),
-                            backgroundColor: Color(0xFF4A55A2),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                      });
-                    }
-
-                    return Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isCreator ? '참가자 송금 현황' : '송금 정보',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontFamily: 'Pretendard',
-                              fontWeight: FontWeight.w400,
-                              color: Colors.black54,
-                            ),
-                          ),
-                          SizedBox(height: 24),
-                          Expanded(
-                            child: ListView.builder(
-                              itemCount: room.users.length,
-                              itemBuilder: (context, index) {
-                                final userId = room.users[index];
-                                final isPaid = room.payments?[userId] ?? false;
-                                final isRoomCreator = userId == room.creatorUid;
-
-                                return FutureBuilder<String?>(
-                                  future: authProvider.getUserEmail(userId),
-                                  builder: (context, emailSnapshot) {
-                                    final userEmail =
-                                        emailSnapshot.data ?? 'Loading...';
-
-                                    return Container(
-                                      margin: EdgeInsets.only(bottom: 12),
-                                      padding: EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[50],
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(
-                                            color: Colors.grey[200]!),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            padding: EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color: (isPaid || isRoomCreator)
-                                                  ? Color(0xFF4A55A2)
-                                                      .withOpacity(0.1)
-                                                  : Colors.red[50],
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Icon(
-                                              (isPaid || isRoomCreator)
-                                                  ? Icons.check_circle_outline
-                                                  : Icons.timer,
-                                              size: 20,
-                                              color: (isPaid || isRoomCreator)
-                                                  ? Color(0xFF4A55A2)
-                                                  : Colors.red[400],
-                                            ),
+                              child: Row(
+                                children: [
+                                  // 송금 상태 아이콘
+                                  Container(
+                                    padding: EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: (isPaid || isRoomCreator)
+                                          ? Color(0xFF4A55A2).withOpacity(0.1)
+                                          : Colors.red[50],
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      (isPaid || isRoomCreator)
+                                          ? Icons.check_circle_outline
+                                          : Icons.timer,
+                                      size: 20,
+                                      color: (isPaid || isRoomCreator)
+                                          ? Color(0xFF4A55A2)
+                                          : Colors.red[400],
+                                    ),
+                                  ),
+                                  SizedBox(width: 12),
+                                  // 사용자 정보
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          userEmail, // 사용자 이메일
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontFamily: 'Pretendard',
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black87,
                                           ),
-                                          SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  userEmail,
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontFamily: 'Pretendard',
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Colors.black87,
-                                                  ),
-                                                ),
-                                                SizedBox(height: 4),
-                                                Text(
-                                                  isRoomCreator
-                                                      ? '방장'
-                                                      : (isPaid
-                                                          ? '송금 완료'
-                                                          : '송금 대기'),
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    fontFamily: 'Pretendard',
-                                                    fontWeight: FontWeight.w400,
-                                                    color: Colors.black54,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          isRoomCreator
+                                              ? '방장'
+                                              : (isPaid ? '송금 완료' : '송금 대기'),
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontFamily: 'Pretendard',
+                                            fontWeight: FontWeight.w400,
+                                            color: Colors.black54,
                                           ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-                          ),
-                          if (!isCreator &&
-                              !currentUserPaid &&
-                              !isCurrentUserCreator) ...[
-                            SizedBox(height: 24),
-                            Container(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton(
-                                onPressed: () => _sendPayment(
-                                    context, room, mileageProvider),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF4A55A2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                child: Text(
-                                  '돈 보내기',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontFamily: 'Pretendard',
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                                ],
                               ),
-                            ),
-                          ],
-                          if (isCreator) ...[
-                            SizedBox(height: 24),
-                            Container(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton(
-                                onPressed: () =>
-                                    _completeSettlement(context, roomId),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF4A55A2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                                child: Text(
-                                  '정산 완료',
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    fontFamily: 'Pretendard',
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  // 송금하기 버튼 (참가자 전용)
+                  if (!isCreator && !(room.payments?[authProvider.user?.uid] ?? false)) ...[
+                    SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => _sendPayment(context, room, mileageProvider),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF4A55A2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
-                    );
-                  },
-                );
-              },
+                      child: Text(
+                        '돈 보내기',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontFamily: 'Pretendard',
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                  // 정산 완료 버튼 (방장 전용)
+                  if (isCreator) ...[
+                    SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () => _completeSettlement(context, roomId),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF4A55A2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        '정산 완료',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontFamily: 'Pretendard',
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           );
         },
@@ -322,87 +254,50 @@ class SettlementConfirmationScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _sendPayment(BuildContext context, RoomModel room,
-      MileageProvider mileageProvider) async {
+  /// 참가자의 송금 처리 로직
+  Future<void> _sendPayment(BuildContext context, RoomModel room, MileageProvider mileageProvider) async {
     try {
       final roomProvider = Provider.of<RoomProvider>(context, listen: false);
       final userId = Provider.of<AuthProvider>(context, listen: false).user!.uid;
 
-      // 택시비 총액
-      int totalAmount = 4800;  // 실제 택시비로 수정
-      
-      // 인원수로 나누기
-      int numberOfUsers = room.users.length;
-      int amountPerPerson = totalAmount ~/ numberOfUsers;
+      int totalAmount = 4800; // 총 금액 (예: 4800원)
+      int amountPerPerson = totalAmount ~/ room.users.length; // 1인당 금액
 
-      // 인당 금액만큼 차감
-      await mileageProvider.deductMileage(amountPerPerson);
-
-      await roomProvider.updatePaymentStatus(room.id, userId, true);
+      await mileageProvider.deductMileage(amountPerPerson); // 마일리지 차감
+      await roomProvider.updatePaymentStatus(room.id, userId, true); // 송금 상태 업데이트
     } catch (e) {
-      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            '송금 처리 중 오류가 발생했습니다',
-            style: TextStyle(
-              fontFamily: 'Pretendard',
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          content: Text('송금 처리 중 오류가 발생했습니다.'),
           backgroundColor: Colors.red[400],
-          duration: Duration(seconds: 2),
         ),
       );
     }
   }
 
+  /// 방장의 정산 완료 처리 로직
   Future<void> _completeSettlement(BuildContext context, String roomId) async {
     try {
       final roomProvider = Provider.of<RoomProvider>(context, listen: false);
-      
-      // 방 삭제 처리
-      await roomProvider.completeSettlement(roomId);
 
-      if (!context.mounted) return;
-
-      // 방 목록으로 이동하기 전에 스낵바 표시
+      await roomProvider.completeSettlement(roomId); // 정산 완료 처리
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            '정산이 완료되었습니다',
-            style: TextStyle(
-              fontFamily: 'Pretendard',
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          content: Text('정산이 완료되었습니다.'),
           backgroundColor: Colors.green[400],
-          duration: Duration(seconds: 2),
         ),
       );
 
-      // 잠시 대기 후 화면 이동 (스낵바가 보일 수 있도록)
       await Future.delayed(Duration(milliseconds: 500));
-      
-      if (!context.mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => RoomListScreen()),
         (route) => false,
       );
     } catch (e) {
-      print('Settlement error: $e');
-      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            '정산 완료 처리 중 오류가 발생했습니다',
-            style: TextStyle(
-              fontFamily: 'Pretendard',
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          content: Text('정산 완료 처리 중 오류가 발생했습니다.'),
           backgroundColor: Colors.red[400],
-          duration: Duration(seconds: 2),
         ),
       );
     }
